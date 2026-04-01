@@ -1,4 +1,4 @@
-FROM node:16 as base
+FROM node:24 as base
 
 RUN git clone https://github.com/harvester/docs.git /home/node/app
 WORKDIR /home/node/app

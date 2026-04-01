@@ -1,0 +1,12 @@
+# Dieser Workflow ist superseded.
+#
+# Helm Chart Publishing ist jetzt in docker-image.yml integriert (update-chart Job).
+# Der Chart wird automatisch nach jedem Push auf main nach GHCR OCI gepusht.
+#
+# Chart-Version: CalVer (YYYY.M.D)
+# Image-Tags: upstream Docs-Repo HEAD SHA
+#
+# Manuell installieren:
+#   helm install rancher-offline-docs \
+#     oci://ghcr.io/tuxpeople/charts/rancher-offline-docs \
+#     --version <YYYY.M.D>

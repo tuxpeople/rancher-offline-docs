@@ -1,6 +1,9 @@
 # Default values for rancher-offline-docs
 # Images are built by CI and pushed to GHCR as:
-#   ghcr.io/<owner>/<name>-docs:<tag>
+#   ghcr.io/<owner>/<n>-docs:<tag>
+#
+# Tags correspond to the HEAD commit SHA of the upstream docs repo
+# at build time — automatically updated by CI after each build.
 #
 # chainguard/nginx listens on port 8080 (non-root)
 
@@ -8,40 +11,46 @@ namespace: rancher-docs-system
 
 registry: ghcr.io/tuxpeople
 
-image:
-  tag: main
-
-# Per-product toggles — set enabled: false to skip a product
-# (useful in low-compute / resource-constrained environments)
+# Per-product config
+# tag: set automatically by CI to the upstream repo HEAD SHA (e.g. "a3f9c12")
+# enabled: set to false to skip a product (useful in low-compute environments)
 docs:
   rancher:
     enabled: true
     image: rancher-docs
+    tag: latest
 
   rke2:
     enabled: true
     image: rke2-docs
+    tag: latest
 
   k3s:
     enabled: true
     image: k3s-docs
+    tag: latest
 
   longhorn:
     enabled: true
     image: longhorn-docs
+    tag: latest
 
   fleet:
     enabled: true
     image: fleet-docs
+    tag: latest
 
   kubewarden:
     enabled: true
     image: kubewarden-docs
+    tag: latest
 
   harvester:
     enabled: true
     image: harvester-docs
+    tag: latest
 
   rancherdesktop:
     enabled: true
     image: rancher-desktop-docs
+    tag: latest

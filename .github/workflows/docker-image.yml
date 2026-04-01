@@ -36,10 +36,11 @@ jobs:
 
   # ---------------------------------------------------------------
   # Build: paralleler Job pro Image
+  #   - Image-Tag = HEAD SHA des upstream Docs-Repos
   #   - GHA Layer Cache
   #   - Push zu GHCR (ausser bei PRs)
   #   - SBOM als OCI-Attestation via BuildKit (ausser bei PRs)
-  #   - Digest für SLSA speichern (ausser bei PRs)
+  #   - Digest für SLSA + upstream SHA für Chart-Update speichern
   # ---------------------------------------------------------------
   build:
     needs: discover
@@ -51,7 +52,7 @@ jobs:
     strategy:
       matrix:
         image: ${{ fromJson(needs.discover.outputs.images) }}
-      fail-fast: false   # Anderen Images weiterbauen wenn eines fehlschlägt
+      fail-fast: false   # Andere Images weiterbauen wenn eines fehlschlägt
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -65,6 +66,30 @@ jobs:
         run: |
           safe=$(echo "${{ matrix.image }}" | tr '@' '-' | tr '/' '-' | tr '[:upper:]' '[:lower:]')
           echo "safe_name=$safe" >> $GITHUB_OUTPUT
+
+      # HEAD SHA des upstream Docs-Repos aus dem Dockerfile auslesen.
+      # Dieser SHA wird als Image-Tag verwendet — er beschreibt welchen Stand
+      # der Upstream-Dokumentation das Image enthält.
+      - name: Get upstream repo SHA
+        id: upstream
+        run: |
+          DOCKERFILE="${{ matrix.image }}/Dockerfile"
+          UPSTREAM_URL=$(grep -m1 'git clone' "$DOCKERFILE" \
+            | awk '{print $3}' | tr -d "\"'" || true)
+
+          if [ -n "$UPSTREAM_URL" ]; then
+            SHA=$(git ls-remote "$UPSTREAM_URL" HEAD 2>/dev/null | cut -c1-7 || echo "")
+            if [ -n "$SHA" ]; then
+              echo "sha=$SHA" >> $GITHUB_OUTPUT
+              echo "Upstream: $UPSTREAM_URL @ $SHA"
+            else
+              echo "sha=latest" >> $GITHUB_OUTPUT
+              echo "::warning::Could not resolve SHA for $UPSTREAM_URL — falling back to 'latest'"
+            fi
+          else
+            echo "sha=latest" >> $GITHUB_OUTPUT
+            echo "::warning::No git clone found in $DOCKERFILE — falling back to 'latest'"
+          fi
 
       - name: Login to GHCR
         if: github.event_name != 'pull_request'
@@ -80,11 +105,12 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ steps.sanitize.outputs.safe_name }}-docs
           tags: |
-            type=ref,event=branch
+            # Primärer Tag: upstream Docs-Repo HEAD SHA (z.B. "a3f9c12")
+            type=raw,value=${{ steps.upstream.outputs.sha }},enable=${{ github.event_name != 'pull_request' }}
+            # latest zeigt immer auf den letzten main-Build
+            type=raw,value=latest,enable=${{ github.event_name != 'pull_request' && github.ref_name == 'main' }}
+            # PR-Builds bekommen einen pr-N Tag (kein Push, nur für Cache)
             type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha
 
       - name: Build and push
         id: build
@@ -103,7 +129,6 @@ jobs:
           provenance: ${{ github.event_name != 'pull_request' && 'mode=max' || 'false' }}
 
       # Digest für den SLSA-Job speichern
-      # Format: "<hex-digest>  <image-ref>" (sha256sum-kompatibel)
       - name: Save digest for SLSA
         if: github.event_name != 'pull_request'
         run: |
@@ -118,6 +143,21 @@ jobs:
         with:
           name: digest-${{ steps.sanitize.outputs.safe_name }}
           path: digest.txt
+          if-no-files-found: error
+
+      # Upstream SHA für den update-chart-Job speichern
+      - name: Save upstream SHA for chart update
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "${{ steps.sanitize.outputs.safe_name }}=${{ steps.upstream.outputs.sha }}" \
+            > upstream-sha.txt
+
+      - name: Upload upstream SHA artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: upstream-sha-${{ steps.sanitize.outputs.safe_name }}
+          path: upstream-sha.txt
           if-no-files-found: error
 
   # ---------------------------------------------------------------
@@ -135,7 +175,6 @@ jobs:
         with:
           pattern: digest-*
           path: digests
-          # Jedes Artifact landet in digests/<artifact-name>/digest.txt
 
       - name: Combine and base64-encode digests
         id: combine
@@ -147,17 +186,130 @@ jobs:
 
   # ---------------------------------------------------------------
   # Provenance: SLSA Level 3 für alle Images
-  # Läuft auf push zu main und bei Releases
   # ---------------------------------------------------------------
   provenance:
     needs: collect-digests
     if: github.event_name != 'pull_request'
     permissions:
-      actions: read    # Workflow-Pfad lesen
-      id-token: write  # Provenance signieren
-      contents: write  # Bei Release: als Asset hochladen
+      actions: read
+      id-token: write
+      contents: write
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a # v2.1.0
     with:
       base64-subjects: "${{ needs.collect-digests.outputs.hashes }}"
-      # Provenance nur bei Releases als Release-Asset hochladen
       upload-assets: ${{ github.event_name == 'release' }}
+
+  # ---------------------------------------------------------------
+  # Update Chart: values.yaml + Chart.yaml aktualisieren und
+  # Helm Chart als OCI nach GHCR pushen.
+  #
+  # Läuft nur auf main-Pushes (nicht bei PRs oder Releases).
+  # Image-Tags in values.yaml werden auf die upstream SHAs gesetzt.
+  # Chart-Version wird als CalVer (YYYY.M.D) gesetzt.
+  # ---------------------------------------------------------------
+  update-chart:
+    needs: [collect-digests]
+    if: github.event_name == 'push' && github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # commit + push zurück zu main
+      packages: write   # Helm Chart nach GHCR OCI pushen
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          # Nötig damit git push funktioniert
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download upstream SHA artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: upstream-sha-*
+          path: upstream-shas
+
+      - name: Install yq
+        run: |
+          wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          chmod +x /usr/local/bin/yq
+
+      - name: Update image tags in values.yaml
+        run: |
+          # Mapping: safe_name (Verzeichnis) → values.yaml-Schlüssel
+          declare -A KEY_MAP=(
+            ["rancher"]="rancher"
+            ["rke2"]="rke2"
+            ["k3s"]="k3s"
+            ["longhorn"]="longhorn"
+            ["fleet"]="fleet"
+            ["kubewarden"]="kubewarden"
+            ["harvester"]="harvester"
+            ["rancher-desktop"]="rancherdesktop"
+          )
+
+          for f in upstream-shas/upstream-sha-*/upstream-sha.txt; do
+            line=$(cat "$f")
+            safe_name="${line%%=*}"
+            sha="${line##*=}"
+            values_key="${KEY_MAP[$safe_name]:-}"
+
+            if [ -n "$values_key" ] && [ -n "$sha" ] && [ "$sha" != "latest" ]; then
+              echo "  docs.${values_key}.tag = ${sha}"
+              yq -i ".docs.${values_key}.tag = \"${sha}\"" \
+                charts/rancher-offline-docs/values.yaml
+            else
+              echo "  Skipping $safe_name (kein Mapping oder SHA nicht verfügbar)"
+            fi
+          done
+
+          echo ""
+          echo "Aktualisierte Tags:"
+          yq '.docs | to_entries | .[] | .key + ": " + .value.tag' \
+            charts/rancher-offline-docs/values.yaml
+
+      - name: Set CalVer chart version
+        id: calver
+        run: |
+          # Format: YYYY.M.D (gültiges Semver: major=Jahr, minor=Monat, patch=Tag)
+          VERSION=$(date +%Y.%-m.%-d)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          yq -i ".version = \"${VERSION}\"" charts/rancher-offline-docs/Chart.yaml
+          echo "Chart-Version: $VERSION"
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package and push Helm chart to GHCR OCI
+        run: |
+          helm package charts/rancher-offline-docs --destination .helm-output
+          helm push .helm-output/*.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
+          echo ""
+          echo "Chart verfügbar unter:"
+          echo "  oci://ghcr.io/${{ github.repository_owner }}/charts/rancher-offline-docs:${{ steps.calver.outputs.version }}"
+          echo ""
+          echo "Installieren mit:"
+          echo "  helm install rancher-offline-docs \\"
+          echo "    oci://ghcr.io/${{ github.repository_owner }}/charts/rancher-offline-docs \\"
+          echo "    --version ${{ steps.calver.outputs.version }}"
+
+      - name: Commit updated values.yaml and Chart.yaml
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add charts/rancher-offline-docs/values.yaml \
+                  charts/rancher-offline-docs/Chart.yaml
+          if git diff --staged --quiet; then
+            echo "Keine Änderungen — nichts zu committen"
+            exit 0
+          fi
+          git commit -m "chore: update image tags + chart ${{ steps.calver.outputs.version }} [skip ci]"
+          # Pull-Rebase falls zwischenzeitlich ein anderer Commit auf main gelandet ist
+          git pull --rebase origin main
+          git push origin main

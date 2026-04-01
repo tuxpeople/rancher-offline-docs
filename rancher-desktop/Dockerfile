@@ -7,7 +7,7 @@ WORKDIR /home/node/app
 #RUN sed -i "s/docs\///g" docusaurus.config.js
 
 # install deps
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 # generate the static html
 RUN npm run build

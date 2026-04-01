@@ -2,25 +2,62 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
 
-  build:
-
+  # ---------------------------------------------------------------
+  # Discover: findet alle Ordner mit Dockerfile und baut die Matrix
+  # ---------------------------------------------------------------
+  discover:
     runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.find.outputs.images }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find Dockerfiles
+        id: find
+        run: |
+          images=$(find . -mindepth 2 -name Dockerfile \
+            | xargs -I{} dirname {} \
+            | xargs -I{} basename {} \
+            | sort \
+            | jq -R -s -c 'split("\n")[:-1]')
+          echo "images=$images" >> $GITHUB_OUTPUT
+          echo "Found: $images"
+
+  # ---------------------------------------------------------------
+  # Build: ein paralleler Job pro Image, mit GHA Layer Cache
+  # ---------------------------------------------------------------
+  build:
+    needs: discover
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image: ${{ fromJson(needs.discover.outputs.images) }}
+      fail-fast: false   # Andere Images weiterbauen wenn eines fehlschlägt
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Build the Docker images
-      run: |
-        find . -name Dockerfile | while read -r dockerfile; do
-          dir=$(dirname "$dockerfile")
-          image=$(basename "$dir")
+      - uses: actions/checkout@v4
 
-          echo "Building $image from $dockerfile"
-          docker build "$dir" --file "$dockerfile" --tag "$image:$(date +%s)"
-          echo ""
-        done
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Sanitize image name (@ und andere Sonderzeichen entfernen, z.B. ansible@docker)
+      - name: Sanitize image name
+        id: sanitize
+        run: |
+          safe=$(echo "${{ matrix.image }}" | tr '@' '-' | tr '/' '-' | tr '[:upper:]' '[:lower:]')
+          echo "safe_name=$safe" >> $GITHUB_OUTPUT
+
+      - name: Build ${{ matrix.image }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.image }}
+          push: false
+          tags: ${{ steps.sanitize.outputs.safe_name }}:latest
+          cache-from: type=gha,scope=${{ steps.sanitize.outputs.safe_name }}
+          cache-to: type=gha,mode=max,scope=${{ steps.sanitize.outputs.safe_name }}

@@ -1,0 +1,135 @@
+{{- if .Values.docs.rancher.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rancher-offline-docs
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: rancher-offline-docs
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 8080
+{{- end }}
+
+{{- if .Values.docs.rke2.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rke2-offline-docs
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: rke2-offline-docs
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 8080
+{{- end }}
+
+{{- if .Values.docs.k3s.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: k3s-offline-docs
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: k3s-offline-docs
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 8080
+{{- end }}
+
+{{- if .Values.docs.longhorn.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: longhorn-offline-docs
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: longhorn-offline-docs
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 8080
+{{- end }}
+
+{{- if .Values.docs.fleet.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fleet-offline-docs
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: fleet-offline-docs
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 8080
+{{- end }}
+
+{{- if .Values.docs.kubewarden.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubewarden-offline-docs
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: kubewarden-offline-docs
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 8080
+{{- end }}
+
+{{- if .Values.docs.harvester.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: harvester-offline-docs
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: harvester-offline-docs
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 8080
+{{- end }}
+
+{{- if .Values.docs.rancherdesktop.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rd-offline-docs
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: rd-offline-docs
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 8080
+{{- end }}

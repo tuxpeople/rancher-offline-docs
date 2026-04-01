@@ -1,0 +1,47 @@
+# Default values for rancher-offline-docs
+# Images are built by CI and pushed to GHCR as:
+#   ghcr.io/<owner>/<name>-docs:<tag>
+#
+# chainguard/nginx listens on port 8080 (non-root)
+
+namespace: rancher-docs-system
+
+registry: ghcr.io/tuxpeople
+
+image:
+  tag: main
+
+# Per-product toggles — set enabled: false to skip a product
+# (useful in low-compute / resource-constrained environments)
+docs:
+  rancher:
+    enabled: true
+    image: rancher-docs
+
+  rke2:
+    enabled: true
+    image: rke2-docs
+
+  k3s:
+    enabled: true
+    image: k3s-docs
+
+  longhorn:
+    enabled: true
+    image: longhorn-docs
+
+  fleet:
+    enabled: true
+    image: fleet-docs
+
+  kubewarden:
+    enabled: true
+    image: kubewarden-docs
+
+  harvester:
+    enabled: true
+    image: harvester-docs
+
+  rancherdesktop:
+    enabled: true
+    image: rancher-desktop-docs

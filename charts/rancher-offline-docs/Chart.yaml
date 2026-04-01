@@ -1,0 +1,19 @@
+apiVersion: v2
+name: rancher-offline-docs
+description: >
+  Deploys offline documentation for the Rancher product portfolio.
+  Each product doc runs as a separate container (chainguard/nginx on port 8080).
+  Images are built from public upstream repos and pushed to GHCR.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - rancher
+  - rke2
+  - documentation
+  - airgap
+  - offline
+sources:
+  - https://github.com/tuxpeople/rancher-offline-docs
+maintainers:
+  - name: tuxpeople

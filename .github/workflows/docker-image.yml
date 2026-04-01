@@ -15,6 +15,7 @@ jobs:
 
   # ---------------------------------------------------------------
   # Discover: findet alle Ordner mit Dockerfile und baut die Matrix
+  # Läuft parallel zu lint — build wartet auf beide.
   # ---------------------------------------------------------------
   discover:
     runs-on: ubuntu-latest
@@ -35,6 +36,22 @@ jobs:
           echo "Found: $images"
 
   # ---------------------------------------------------------------
+  # Lint: alle Dockerfiles mit hadolint prüfen
+  # Läuft parallel zu discover — build wartet auf beide.
+  # Konfiguration: .hadolint.yaml
+  # ---------------------------------------------------------------
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Lint all Dockerfiles
+        uses: hadolint/hadolint-action@54c9adbab1582c2ef04b2016b760714a4bfde3cf # v3.1.0
+        with:
+          recursive: true
+          config: .hadolint.yaml
+
+  # ---------------------------------------------------------------
   # Build: paralleler Job pro Image
   #   - Image-Tag = HEAD SHA des upstream Docs-Repos
   #   - GHA Layer Cache
@@ -43,7 +60,7 @@ jobs:
   #   - Digest für SLSA + upstream SHA für Chart-Update speichern
   # ---------------------------------------------------------------
   build:
-    needs: discover
+    needs: [discover, lint]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -218,7 +235,6 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
-          # Nötig damit git push funktioniert
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download upstream SHA artifacts
@@ -270,7 +286,6 @@ jobs:
       - name: Set CalVer chart version
         id: calver
         run: |
-          # Format: YYYY.M.D (gültiges Semver: major=Jahr, minor=Monat, patch=Tag)
           VERSION=$(date +%Y.%-m.%-d)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           yq -i ".version = \"${VERSION}\"" charts/rancher-offline-docs/Chart.yaml
@@ -310,6 +325,5 @@ jobs:
             exit 0
           fi
           git commit -m "chore: update image tags + chart ${{ steps.calver.outputs.version }} [skip ci]"
-          # Pull-Rebase falls zwischenzeitlich ein anderer Commit auf main gelandet ist
           git pull --rebase origin main
           git push origin main

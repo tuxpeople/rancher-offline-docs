@@ -1,0 +1,24 @@
+# Hadolint Konfiguration
+# Docs: https://github.com/hadolint/hadolint
+
+ignore:
+  # DL3007: Using "latest" tag
+  # → cgr.dev/chainguard/nginx ohne Tag = latest ist intentional.
+  #   Chainguard empfiehlt explizit "latest" für kontinuierliche Security-Patches.
+  - DL3007
+
+  # DL3018: Pin versions in apk add
+  # → hugo wird via apk installiert (longhorn/Dockerfile), eine Versions-Pinnung
+  #   ist in apk nicht praktikabel ohne eigenes Repository.
+  - DL3018
+
+  # DL3059: Multiple consecutive RUN instructions
+  # → Intentional: git clone, npm install und npm run build sind bewusst separate
+  #   Layer für effektives Docker-Layer-Caching. npm install wird nur neu ausgeführt
+  #   wenn sich package.json ändert, nicht bei jedem Code-Build.
+  - DL3059
+
+trustedRegistries:
+  - cgr.dev
+  - docker.io
+  - ghcr.io

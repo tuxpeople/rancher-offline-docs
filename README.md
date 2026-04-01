@@ -50,8 +50,9 @@ Der Build-Workflow läuft bei jedem Push auf `main` und baut alle Images paralle
 
 ```
 push to main
-  └── discover          Alle Ordner mit Dockerfile finden
-       └── build ×N     Pro Image parallel:
+  ├── discover          Alle Ordner mit Dockerfile finden
+  └── lint              Alle Dockerfiles mit hadolint prüfen
+       └── build ×N     Pro Image parallel (wartet auf discover + lint):
             ├── upstream HEAD SHA holen (git ls-remote)
             ├── Image bauen + pushen  →  ghcr.io/tuxpeople/<n>-docs:<sha>
             ├── SBOM als OCI-Attestation (BuildKit/Syft)
@@ -67,6 +68,7 @@ push to main
 
 ### Security
 
+- **Hadolint**: Alle Dockerfiles werden bei jedem Build gelintet. Konfiguration in `.hadolint.yaml`. Lint-Fehler blockieren den Build.
 - **SBOM**: Jedes Image enthält ein Software Bill of Materials als OCI-Attestation, generiert durch Syft während dem Build (kein nachträgliches Scannen)
 - **SLSA Level 3**: Signierte Provenance für alle Images via [slsa-framework/slsa-github-generator](https://github.com/slsa-framework/slsa-github-generator)
 - **Distroless nginx**: Alle Images basieren auf `cgr.dev/chainguard/nginx` — minimale Angriffsfläche, läuft non-root auf Port 8080
@@ -155,16 +157,16 @@ done
 
 2. `Dockerfile` erstellen — das Pattern ist immer gleich:
    ```dockerfile
-   FROM node:24 as base
+   FROM node:24 AS base
    RUN git clone https://github.com/upstream/meinprodukt-docs /home/node/app
    WORKDIR /home/node/app
    RUN npm install
    RUN npm run build
 
-   FROM cgr.dev/chainguard/nginx as deploy
+   FROM cgr.dev/chainguard/nginx AS deploy
    COPY --from=base /home/node/app/build /usr/share/nginx/html/
    ```
-   > Für Hugo-basierte Docs: `apk add git hugo` + `RUN hugo` statt `npm run build`
+   > Für Hugo-basierte Docs (wie Longhorn): `node:24-alpine` als Basis, `apk add --no-cache git hugo`, dann `RUN hugo` statt `npm run build`
 
 3. In `charts/rancher-offline-docs/values.yaml` eintragen:
    ```yaml
@@ -177,7 +179,7 @@ done
 
 4. In `charts/rancher-offline-docs/templates/` Deployment, Service und NavLink ergänzen (analog zu bestehenden Einträgen).
 
-5. Push auf `main` — CI baut automatisch, setzt den upstream SHA als Tag und aktualisiert den Chart.
+5. Push auf `main` — CI lintet, baut, setzt den upstream SHA als Tag und aktualisiert den Chart.
 
 ---
 
@@ -198,8 +200,9 @@ rancher-offline-docs/
 │           └── navlink.yaml
 ├── .github/
 │   └── workflows/
-│       ├── docker-image.yml  # Haupt-Pipeline: Build + SBOM + SLSA + Chart-Update
+│       ├── docker-image.yml  # Haupt-Pipeline: Lint + Build + SBOM + SLSA + Chart-Update
 │       └── release.yml       # Superseded — Chart-Publish ist in docker-image.yml
+├── .hadolint.yaml            # Hadolint-Konfiguration (projektspezifische Ignore-Rules)
 └── renovate.json
 ```
 

@@ -13,3 +13,9 @@ RUN npm run build
 FROM cgr.dev/chainguard/nginx AS deploy
 
 COPY --from=base /home/node/app/build /usr/share/nginx/html/
+
+LABEL org.opencontainers.image.title="Rancher Manager - Offline Documentation" \
+      org.opencontainers.image.description="Offline-capable static documentation for Rancher Multi-cluster Manager" \
+      org.opencontainers.image.documentation="https://ranchermanager.docs.rancher.com" \
+      org.opencontainers.image.vendor="tuxpeople" \
+      org.opencontainers.image.licenses="Apache-2.0"

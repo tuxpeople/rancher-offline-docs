@@ -84,9 +84,10 @@ jobs:
           safe=$(echo "${{ matrix.image }}" | tr '@' '-' | tr '/' '-' | tr '[:upper:]' '[:lower:]')
           echo "safe_name=$safe" >> $GITHUB_OUTPUT
 
-      # HEAD SHA des upstream Docs-Repos aus dem Dockerfile auslesen.
-      # Dieser SHA wird als Image-Tag verwendet — er beschreibt welchen Stand
+      # HEAD SHA und URL des upstream Docs-Repos aus dem Dockerfile auslesen.
+      # SHA wird als Image-Tag verwendet — er beschreibt welchen Stand
       # der Upstream-Dokumentation das Image enthält.
+      # URL und SHA werden zusätzlich als OCI-Labels gesetzt.
       - name: Get upstream repo SHA
         id: upstream
         run: |
@@ -95,6 +96,7 @@ jobs:
             | awk '{print $3}' | tr -d "\"'" || true)
 
           if [ -n "$UPSTREAM_URL" ]; then
+            echo "url=$UPSTREAM_URL" >> $GITHUB_OUTPUT
             SHA=$(git ls-remote "$UPSTREAM_URL" HEAD 2>/dev/null | cut -c1-7 || echo "")
             if [ -n "$SHA" ]; then
               echo "sha=$SHA" >> $GITHUB_OUTPUT
@@ -104,6 +106,7 @@ jobs:
               echo "::warning::Could not resolve SHA for $UPSTREAM_URL — falling back to 'latest'"
             fi
           else
+            echo "url=" >> $GITHUB_OUTPUT
             echo "sha=latest" >> $GITHUB_OUTPUT
             echo "::warning::No git clone found in $DOCKERFILE — falling back to 'latest'"
           fi
@@ -121,6 +124,13 @@ jobs:
         uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ steps.sanitize.outputs.safe_name }}-docs
+          # Automatisch gesetzt von metadata-action:
+          #   org.opencontainers.image.created, .revision, .source, .url, .version
+          # Statische Labels (title, description, documentation, vendor, licenses)
+          #   stehen im jeweiligen Dockerfile als LABEL-Instruktion.
+          labels: |
+            io.tuxpeople.upstream.url=${{ steps.upstream.outputs.url }}
+            io.tuxpeople.upstream.sha=${{ steps.upstream.outputs.sha }}
           tags: |
             # Primärer Tag: upstream Docs-Repo HEAD SHA (z.B. "a3f9c12")
             type=raw,value=${{ steps.upstream.outputs.sha }},enable=${{ github.event_name != 'pull_request' }}

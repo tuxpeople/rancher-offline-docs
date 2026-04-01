@@ -14,5 +14,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Build the Docker image
-      run: for i in $(find . -name Dockerfile | cut -d'/' -f2 | tr '\n' ' '); do echo Building $1; docker build ./$i --file Dockerfile --tag $i:$(date +%s); echo ""; done
+    - name: Build the Docker images
+      run: |
+        find . -name Dockerfile | while read -r dockerfile; do
+          dir=$(dirname "$dockerfile")
+          image=$(basename "$dir")
+
+          echo "Building $image from $dockerfile"
+          docker build "$dir" --file "$dockerfile" --tag "$image:$(date +%s)"
+          echo ""
+        done

@@ -58,6 +58,7 @@ jobs:
   #   - Push zu GHCR (ausser bei PRs)
   #   - SBOM als OCI-Attestation via BuildKit (ausser bei PRs)
   #   - Digest für SLSA + upstream SHA für Chart-Update speichern
+  #   - Optional: stable version image (wenn upstream versions.json hat)
   # ---------------------------------------------------------------
   build:
     needs: [discover, lint]
@@ -186,6 +187,92 @@ jobs:
           name: upstream-sha-${{ steps.sanitize.outputs.safe_name }}
           path: upstream-sha.txt
           if-no-files-found: error
+
+      # ---------------------------------------------------------------
+      # Stable version build (nur bei Repos mit versions.json)
+      #
+      # Versionierte Docs-Repos (z.B. Harvester, Rancher) haben eine
+      # versions.json mit stabilen Releases. Für die neueste stabile
+      # Version wird ein separates Image gebaut und mit dem Versions-Tag
+      # gepusht (z.B. :v1.7, :2.12).
+      #
+      # Idempotent: existiert das Image bereits, wird es übersprungen.
+      # Stabile Docs ändern sich nicht mehr → einmal gebaut, nie wieder.
+      #
+      # continue-on-error: Build-Fehler (z.B. fehlende API-Docs in alten
+      # Versionen) blockieren nicht den Rest der Pipeline.
+      # ---------------------------------------------------------------
+      - name: Detect upstream stable version
+        id: stable
+        if: github.event_name != 'pull_request'
+        run: |
+          UPSTREAM_URL="${{ steps.upstream.outputs.url }}"
+          if [ -z "$UPSTREAM_URL" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Minimaler Clone: nur versions.json holen ohne vollständigen Checkout
+          # --filter=blob:none: lädt keine Datei-Inhalte beim Clone
+          # git checkout HEAD -- versions.json: holt nur diese eine Datei
+          TMPDIR=$(mktemp -d)
+          git clone --depth=1 --filter=blob:none --no-checkout --quiet \
+            "$UPSTREAM_URL" "$TMPDIR" 2>/dev/null \
+          && git -C "$TMPDIR" checkout HEAD -- versions.json 2>/dev/null \
+          || { echo "skip=true" >> $GITHUB_OUTPUT; rm -rf "$TMPDIR"; exit 0; }
+
+          if [ ! -f "$TMPDIR/versions.json" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            rm -rf "$TMPDIR"
+            exit 0
+          fi
+
+          # Neueste stabile Version = erstes Element in versions.json
+          LATEST=$(node -e "
+            try {
+              const v = JSON.parse(require('fs').readFileSync('$TMPDIR/versions.json', 'utf8'));
+              if (Array.isArray(v) && v.length > 0) console.log(v[0]);
+            } catch(e) {}
+          " 2>/dev/null || echo "")
+          rm -rf "$TMPDIR"
+
+          if [ -z "$LATEST" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "skip=false" >> $GITHUB_OUTPUT
+          echo "version=$LATEST" >> $GITHUB_OUTPUT
+          echo "Neueste stabile Version: $LATEST"
+
+      - name: Check if stable version image already exists in GHCR
+        id: stable-check
+        if: steps.stable.outputs.skip == 'false'
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ steps.sanitize.outputs.safe_name }}-docs"
+          VERSION="${{ steps.stable.outputs.version }}"
+          if docker manifest inspect "${IMAGE}:${VERSION}" > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "${IMAGE}:${VERSION} existiert bereits — Build wird übersprungen"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "${IMAGE}:${VERSION} nicht gefunden — wird gebaut"
+          fi
+
+      - name: Build and push stable version image
+        if: steps.stable.outputs.skip == 'false' && steps.stable-check.outputs.exists == 'false'
+        continue-on-error: true
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
+        with:
+          context: ./${{ matrix.image }}
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ steps.sanitize.outputs.safe_name }}-docs:${{ steps.stable.outputs.version }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_VERSION=${{ steps.stable.outputs.version }}
+          cache-from: type=gha,scope=${{ steps.sanitize.outputs.safe_name }}
+          sbom: true
+          provenance: mode=max
 
   # ---------------------------------------------------------------
   # Collect: Digests aus allen Matrix-Jobs zusammenführen

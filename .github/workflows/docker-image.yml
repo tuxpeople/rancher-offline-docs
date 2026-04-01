@@ -5,6 +5,11 @@ on:
     branches: ["main"]
   pull_request:
     branches: ["main"]
+  release:
+    types: [created]
+
+env:
+  REGISTRY: ghcr.io
 
 jobs:
 
@@ -30,15 +35,23 @@ jobs:
           echo "Found: $images"
 
   # ---------------------------------------------------------------
-  # Build: ein paralleler Job pro Image, mit GHA Layer Cache
+  # Build: paralleler Job pro Image
+  #   - GHA Layer Cache
+  #   - Push zu GHCR (ausser bei PRs)
+  #   - SBOM als OCI-Attestation via BuildKit (ausser bei PRs)
+  #   - Digest für SLSA speichern (ausser bei PRs)
   # ---------------------------------------------------------------
   build:
     needs: discover
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write   # GHCR push
+      id-token: write   # SBOM- und Provenance-Attestationen
     strategy:
       matrix:
         image: ${{ fromJson(needs.discover.outputs.images) }}
-      fail-fast: false   # Andere Images weiterbauen wenn eines fehlschlägt
+      fail-fast: false   # Anderen Images weiterbauen wenn eines fehlschlägt
 
     steps:
       - uses: actions/checkout@v4
@@ -46,18 +59,105 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Sanitize image name (@ und andere Sonderzeichen entfernen, z.B. ansible@docker)
+      # @ und Sonderzeichen entfernen (z.B. ansible@docker → ansible-docker)
       - name: Sanitize image name
         id: sanitize
         run: |
           safe=$(echo "${{ matrix.image }}" | tr '@' '-' | tr '/' '-' | tr '[:upper:]' '[:lower:]')
           echo "safe_name=$safe" >> $GITHUB_OUTPUT
 
-      - name: Build ${{ matrix.image }}
+      - name: Login to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ steps.sanitize.outputs.safe_name }}-docs
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+
+      - name: Build and push
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: ./${{ matrix.image }}
-          push: false
-          tags: ${{ steps.sanitize.outputs.safe_name }}:latest
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ steps.sanitize.outputs.safe_name }}
           cache-to: type=gha,mode=max,scope=${{ steps.sanitize.outputs.safe_name }}
+          # SBOM via BuildKit: wird als OCI-Attestation am Image-Manifest angehängt
+          # Generiert während dem Build (Syft), kein nachträgliches Scannen
+          sbom: ${{ github.event_name != 'pull_request' }}
+          # Inline SLSA Provenance (Build Level 1) — Level 3 folgt im provenance-Job
+          provenance: ${{ github.event_name != 'pull_request' && 'mode=max' || 'false' }}
+
+      # Digest für den SLSA-Job speichern
+      # Format: "<hex-digest>  <image-ref>" (sha256sum-kompatibel)
+      - name: Save digest for SLSA
+        if: github.event_name != 'pull_request'
+        run: |
+          image_ref="${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ steps.sanitize.outputs.safe_name }}-docs"
+          digest="${{ steps.build.outputs.digest }}"
+          printf '%s  %s\n' "${digest#sha256:}" "${image_ref}" > digest.txt
+          echo "Saved: $(cat digest.txt)"
+
+      - name: Upload digest artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ steps.sanitize.outputs.safe_name }}
+          path: digest.txt
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------
+  # Collect: Digests aus allen Matrix-Jobs zusammenführen
+  # ---------------------------------------------------------------
+  collect-digests:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      hashes: ${{ steps.combine.outputs.hashes }}
+    steps:
+      - name: Download all digest artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: digest-*
+          path: digests
+          # Jedes Artifact landet in digests/<artifact-name>/digest.txt
+
+      - name: Combine and base64-encode digests
+        id: combine
+        run: |
+          echo "All digests:"
+          cat digests/*/digest.txt
+          hashes=$(cat digests/*/digest.txt | base64 -w0)
+          echo "hashes=$hashes" >> $GITHUB_OUTPUT
+
+  # ---------------------------------------------------------------
+  # Provenance: SLSA Level 3 für alle Images
+  # Läuft auf push zu main und bei Releases
+  # ---------------------------------------------------------------
+  provenance:
+    needs: collect-digests
+    if: github.event_name != 'pull_request'
+    permissions:
+      actions: read    # Workflow-Pfad lesen
+      id-token: write  # Provenance signieren
+      contents: write  # Bei Release: als Asset hochladen
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    with:
+      base64-subjects: "${{ needs.collect-digests.outputs.hashes }}"
+      # Provenance nur bei Releases als Release-Asset hochladen
+      upload-assets: ${{ github.event_name == 'release' }}

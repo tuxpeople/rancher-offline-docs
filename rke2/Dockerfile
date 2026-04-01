@@ -1,9 +1,9 @@
-FROM node:24 as base
+FROM node:24 AS base
 
 RUN git clone https://github.com/rancher/rke2-docs /home/node/app
 WORKDIR /home/node/app
 
-# remove the url path that breaks dynamic rewrites
+# remove the url path prefix that breaks dynamic rewrites
 RUN sed -i "s/rke2-docs\///g" docusaurus.config.js
 
 # install deps
@@ -13,7 +13,6 @@ RUN npm install
 RUN npm run build
 
 ###---------
-FROM cgr.dev/chainguard/nginx as deploy
+FROM cgr.dev/chainguard/nginx AS deploy
 
-# copy over just the static html
 COPY --from=base /home/node/app/build /usr/share/nginx/html/

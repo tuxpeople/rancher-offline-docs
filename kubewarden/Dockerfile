@@ -1,10 +1,7 @@
-FROM node:24 as base
+FROM node:24 AS base
 
 RUN git clone https://github.com/kubewarden/docs.git /home/node/app
 WORKDIR /home/node/app
-
-# remove the url path that breaks dynamic rewrites
-#RUN sed -i "s/docs\///g" docusaurus.config.js
 
 # install deps
 RUN npm install
@@ -13,7 +10,6 @@ RUN npm install
 RUN npm run build
 
 ###---------
-FROM cgr.dev/chainguard/nginx as deploy
+FROM cgr.dev/chainguard/nginx AS deploy
 
-# copy over just the static html
-COPY --from=base /home/node/app/build /var/lib/nginx/html 
+COPY --from=base /home/node/app/build /usr/share/nginx/html/

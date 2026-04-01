@@ -1,18 +1,17 @@
-FROM node:current-alpine as base
+FROM node:24-alpine AS base
 
-RUN apk add git hugo
+RUN apk add --no-cache git hugo
 
 RUN git clone https://github.com/longhorn/website /home/node/app
 WORKDIR /home/node/app
 
-# install deps
+# install deps (for theme/plugins)
 RUN npm install
-# generate static HTML
+
+# generate the static html
 RUN hugo
 
 ###---------
-FROM cgr.dev/chainguard/nginx as deploy
+FROM cgr.dev/chainguard/nginx AS deploy
 
-# copy over just the static html
-COPY --from=base /home/node/app/public /var/lib/nginx/html 
-# /usr/share/nginx/html/
+COPY --from=base /home/node/app/public /usr/share/nginx/html/

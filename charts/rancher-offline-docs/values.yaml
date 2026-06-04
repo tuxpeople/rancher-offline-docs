@@ -8,9 +8,7 @@
 # chainguard/nginx listens on port 8080 (non-root)
 
 namespace: rancher-docs-system
-
 registry: ghcr.io/tuxpeople
-
 # Per-product config
 # tag: set automatically by CI to the upstream repo HEAD SHA (e.g. "a3f9c12")
 # enabled: set to false to skip a product (useful in low-compute environments)
@@ -18,39 +16,32 @@ docs:
   rancher:
     enabled: true
     image: rancher-docs
-    tag: latest
-
+    tag: 5e84867
   rke2:
     enabled: true
     image: rke2-docs
-    tag: latest
-
+    tag: a2e3f01
   k3s:
     enabled: true
     image: k3s-docs
-    tag: latest
-
+    tag: ee59dfa
   longhorn:
     enabled: true
     image: longhorn-docs
-    tag: latest
-
+    tag: 4d50d95
   fleet:
     enabled: true
     image: fleet-docs
-    tag: latest
-
+    tag: 1b43329
   kubewarden:
     enabled: true
     image: kubewarden-docs
-    tag: latest
-
+    tag: 7bc0303
   harvester:
     enabled: true
     image: harvester-docs
-    tag: latest
-
+    tag: 772b1eb
   rancherdesktop:
     enabled: true
     image: rancher-desktop-docs
-    tag: latest
+    tag: 733300f

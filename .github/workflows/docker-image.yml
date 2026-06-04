@@ -95,7 +95,8 @@ jobs:
         run: |
           DOCKERFILE="${{ matrix.image }}/Dockerfile"
           UPSTREAM_URL=$(grep -m1 'git clone' "$DOCKERFILE" \
-            | awk '{print $3}' | tr -d "\"'" || true)
+            | awk '{ for (i = 1; i <= NF; i++) if ($i ~ /^https?:\/\//) { print $i; exit } }' \
+            | tr -d "\"'" || true)
 
           if [ -n "$UPSTREAM_URL" ]; then
             echo "url=$UPSTREAM_URL" >> $GITHUB_OUTPUT

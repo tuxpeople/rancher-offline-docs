@@ -8,14 +8,14 @@ WORKDIR /home/node/app
 RUN npm install --legacy-peer-deps
 
 # Handle versioning:
-#   BUILD_VERSION=current (default): dev/next docs — remove all versioned content
+#   BUILD_VERSION=current (default): dev/next docs with upstream version table
 #   BUILD_VERSION=v1.7 (or any stable): only keep that specific version
 #
 # For stable versions, older entries in versioned_sidebars may reference API docs
 # that weren't generated for that version. gen-api-docs handles this best-effort.
 RUN if [ "${BUILD_VERSION}" = "current" ]; then \
       echo "Building current (dev) version" ; \
-      rm -f versions.json && rm -rf versioned_docs versioned_sidebars ; \
+      true ; \
     else \
       echo "Building stable version: ${BUILD_VERSION}" ; \
       printf '["%s"]\n' "${BUILD_VERSION}" > versions.json ; \

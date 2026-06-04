@@ -1,20 +1,18 @@
 FROM node:24 AS base
 
-RUN git clone https://github.com/kubewarden/docs.git /home/node/app
+RUN git clone --recurse-submodules https://github.com/kubewarden/docs.git /home/node/app
 WORKDIR /home/node/app
 
 # install deps
-RUN npm install
+RUN npm ci || npm install
 
 # generate the static html
-RUN npm run build
-COPY postprocess-docusaurus.mjs /tmp/postprocess-docusaurus.mjs
-RUN node /tmp/postprocess-docusaurus.mjs build
+RUN make community-local
 
 ###---------
 FROM cgr.dev/chainguard/nginx AS deploy
 
-COPY --from=base /home/node/app/build /usr/share/nginx/html/
+COPY --from=base /home/node/app/build/site /usr/share/nginx/html/
 COPY nginx-docs.conf /etc/nginx/conf.d/default.conf
 
 LABEL org.opencontainers.image.title="Kubewarden - Offline Documentation" \

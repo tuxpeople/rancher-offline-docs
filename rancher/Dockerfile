@@ -8,11 +8,11 @@ WORKDIR /home/node/app
 RUN npm install
 
 # Handle versioning:
-#   BUILD_VERSION=current (default): latest/current docs — remove versioned content
+#   BUILD_VERSION=current (default): latest/current docs with upstream version table
 #   BUILD_VERSION=2.12 (or any stable): only keep that specific version
 RUN if [ "${BUILD_VERSION}" = "current" ]; then \
       echo "Building current (latest) version" ; \
-      rm -f versions.json && rm -rf versioned_docs versioned_sidebars ; \
+      true ; \
     else \
       echo "Building stable version: ${BUILD_VERSION}" ; \
       printf '["%s"]\n' "${BUILD_VERSION}" > versions.json ; \

@@ -25,10 +25,13 @@ RUN if [ "${BUILD_VERSION}" = "current" ]; then \
         ! -name "version-${BUILD_VERSION}-sidebars.json" -delete 2>/dev/null || true ; \
     fi
 
-# generate API sidebar (required by docusaurus-plugin-openapi-docs before build)
-# For stable versions this may fail if the version isn't in the plugin config — that's OK
-RUN npx docusaurus gen-api-docs all 2>/dev/null \
-    || echo "::warning::API docs generation failed — continuing without API docs"
+# Generate API docs required by current and versioned sidebars.
+RUN if [ "${BUILD_VERSION}" = "current" ]; then \
+      npm run gen-api-docs ; \
+    else \
+      npx docusaurus gen-api-docs all 2>/dev/null \
+        || echo "::warning::API docs generation failed — continuing without API docs" ; \
+    fi
 
 # generate the static html
 RUN npm run build

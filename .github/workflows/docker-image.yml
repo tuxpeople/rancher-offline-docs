@@ -314,6 +314,7 @@ jobs:
     with:
       base64-subjects: "${{ needs.collect-digests.outputs.hashes }}"
       upload-assets: ${{ github.event_name == 'release' }}
+      continue-on-error: true
 
   # ---------------------------------------------------------------
   # Update Chart: values.yaml + Chart.yaml aktualisieren und

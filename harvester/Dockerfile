@@ -1,11 +1,13 @@
 FROM node:24 AS base
 ARG BUILD_VERSION=current
+ENV PUPPETEER_SKIP_DOWNLOAD=true \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 RUN git clone https://github.com/harvester/docs.git /home/node/app
 WORKDIR /home/node/app
 
 # install deps (--legacy-peer-deps required: docusaurus-plugin-openapi-docs peer conflict)
-RUN npm install --legacy-peer-deps
+RUN timeout 1200 npm install --legacy-peer-deps --no-audit --no-fund
 
 # Handle versioning:
 #   BUILD_VERSION=current (default): dev/next docs with upstream version table

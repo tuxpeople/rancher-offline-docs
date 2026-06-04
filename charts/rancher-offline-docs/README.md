@@ -27,7 +27,16 @@ helm install rancher-offline-docs \
 # Spezifische Version
 helm install rancher-offline-docs \
   oci://ghcr.io/tuxpeople/charts/rancher-offline-docs \
-  --version 2026.4.1 \
+  --version 2026.6.4-r123 \
+  --namespace rancher-docs-system \
+  --create-namespace
+```
+
+Die konkrete OCI-Version steht im GitHub-Actions-Log des `update-chart` Jobs. Für Tests aus dem Checkout kann der Chart auch lokal installiert werden:
+
+```bash
+helm install rancher-offline-docs \
+  ./charts/rancher-offline-docs \
   --namespace rancher-docs-system \
   --create-namespace
 ```
@@ -152,7 +161,7 @@ kubectl delete namespace rancher-docs-system
 
 ## Versionsschema
 
-Der Chart nutzt **CalVer** (`YYYY.M.D`). Eine neue Chart-Version wird automatisch nach jedem Build auf `main` publiziert. Die Version beschreibt den Zeitpunkt des Snapshots, nicht die Version der enthaltenen Software.
+Der Chart nutzt **CalVer mit GitHub-Run-Nummer** (`YYYY.M.D-rN`). Eine neue Chart-Version wird automatisch nach jedem erfolgreichen Build auf `main` publiziert. Die Run-Nummer macht die Version eindeutig, weil OCI-Chart-Versionen in GHCR nicht zuverlässig überschrieben werden.
 
 ## Ressourcen
 

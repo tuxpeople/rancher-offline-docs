@@ -7,6 +7,7 @@ on:
     branches: ["main"]
   release:
     types: [created]
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
@@ -319,7 +320,7 @@ jobs:
   #
   # Läuft nur auf main-Pushes (nicht bei PRs oder Releases).
   # Image-Tags in values.yaml werden auf die upstream SHAs gesetzt.
-  # Chart-Version wird als CalVer (YYYY.M.D) gesetzt.
+  # Chart-Version wird als CalVer + Run-Nummer (YYYY.M.D-rN) gesetzt.
   # ---------------------------------------------------------------
   update-chart:
     needs: [collect-digests]
@@ -383,7 +384,7 @@ jobs:
       - name: Set CalVer chart version
         id: calver
         run: |
-          VERSION=$(date +%Y.%-m.%-d)
+          VERSION="$(date +%Y.%-m.%-d)-r${GITHUB_RUN_NUMBER}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           yq -i ".version = \"${VERSION}\"" charts/rancher-offline-docs/Chart.yaml
           echo "Chart-Version: $VERSION"
@@ -391,12 +392,12 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5
 
-      - name: Login to GHCR
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Login Helm to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | helm registry login ghcr.io \
+                --username "${{ github.actor }}" \
+                --password-stdin
 
       - name: Package and push Helm chart to GHCR OCI
         run: |

@@ -40,7 +40,7 @@ ghcr.io/tuxpeople/rke2-docs:a3f9c12   # upstream SHA → pinned
 ghcr.io/tuxpeople/rke2-docs:latest    # immer aktuell
 ```
 
-Der Helm Chart nutzt **CalVer** (`YYYY.M.D`) als Versions-Schema, weil ein Datum besser beschreibt was der Chart ist — ein Snapshot zu einem bestimmten Zeitpunkt.
+Der Helm Chart nutzt **CalVer mit GitHub-Run-Nummer** (`YYYY.M.D-rN`) als Versions-Schema. Das Datum beschreibt den Snapshot, die Run-Nummer macht die OCI-Version eindeutig, da GHCR Chart-Versionen nicht zuverlässig überschreibt.
 
 ---
 
@@ -90,7 +90,16 @@ Der Chart deployt die Docs als Deployments + Services + Rancher NavLinks direkt 
 ```bash
 helm install rancher-offline-docs \
   oci://ghcr.io/tuxpeople/charts/rancher-offline-docs \
-  --version 2026.4.1 \
+  --version 2026.6.4-r123 \
+  --namespace rancher-docs-system \
+  --create-namespace
+```
+
+Die konkrete Version steht im GitHub-Actions-Log des `update-chart` Jobs. Lokal kann der Chart auch direkt aus dem Checkout installiert werden:
+
+```bash
+helm install rancher-offline-docs \
+  ./charts/rancher-offline-docs \
   --namespace rancher-docs-system \
   --create-namespace
 ```
@@ -100,7 +109,7 @@ Mit eigener Registry:
 ```bash
 helm install rancher-offline-docs \
   oci://ghcr.io/tuxpeople/charts/rancher-offline-docs \
-  --version 2026.4.1 \
+  --version 2026.6.4-r123 \
   --namespace rancher-docs-system \
   --create-namespace \
   --set registry=registry.example.com/myproject
@@ -111,7 +120,7 @@ Einzelne Produkte deaktivieren (z.B. in ressourcenbeschränkten Umgebungen):
 ```bash
 helm install rancher-offline-docs \
   oci://ghcr.io/tuxpeople/charts/rancher-offline-docs \
-  --version 2026.4.1 \
+  --version 2026.6.4-r123 \
   --set docs.harvester.enabled=false \
   --set docs.rancherdesktop.enabled=false
 ```

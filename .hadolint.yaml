@@ -1,11 +1,11 @@
 # Hadolint Konfiguration
 # Docs: https://github.com/hadolint/hadolint
 
-ignore:
-  # DL3007: Using "latest" tag
+ignored:
+  # DL3006: Always tag the version of an image explicitly
   # → cgr.dev/chainguard/nginx ohne Tag = latest ist intentional.
   #   Chainguard empfiehlt explizit "latest" für kontinuierliche Security-Patches.
-  - DL3007
+  - DL3006
 
   # DL3018: Pin versions in apk add
   # → hugo wird via apk installiert (longhorn/Dockerfile), eine Versions-Pinnung

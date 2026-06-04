@@ -8,11 +8,14 @@ RUN npm install --legacy-peer-deps
 
 # generate the static html
 RUN npm run build
+COPY postprocess-docusaurus.mjs /tmp/postprocess-docusaurus.mjs
+RUN node /tmp/postprocess-docusaurus.mjs build
 
 ###---------
 FROM cgr.dev/chainguard/nginx AS deploy
 
 COPY --from=base /home/node/app/build /usr/share/nginx/html/
+COPY nginx-docs.conf /etc/nginx/conf.d/default.conf
 
 LABEL org.opencontainers.image.title="Rancher Desktop - Offline Documentation" \
       org.opencontainers.image.description="Offline-capable static documentation for Rancher Desktop developer container runtime" \

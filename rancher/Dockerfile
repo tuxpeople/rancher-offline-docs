@@ -1,4 +1,4 @@
-FROM node:18 AS base
+FROM node:24 AS base
 ARG BUILD_VERSION=current
 
 RUN git clone https://github.com/rancher/rancher-docs /home/node/app

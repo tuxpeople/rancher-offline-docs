@@ -4,7 +4,7 @@ description: >
   Deploys offline documentation for the Rancher product portfolio. Each product doc runs as a separate container (chainguard/nginx on port 8080). Images are built from public upstream repos and pushed to GHCR.
 
 type: application
-version: 2026.6.9-r59
+version: 2026.6.9-r60
 appVersion: "1.0.0"
 keywords:
   - rancher

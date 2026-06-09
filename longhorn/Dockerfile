@@ -5,11 +5,16 @@ RUN apk add --no-cache git hugo
 RUN git clone https://github.com/longhorn/website /home/node/app
 WORKDIR /home/node/app
 
+# Generate path-relative links so version navigation works below the Rancher proxy URL.
+RUN printf '\nrelativeURLs = true\ncanonifyURLs = false\n' >> config.toml
+
 # install deps (for theme/plugins)
 RUN npm install
 
 # generate the static html
 RUN hugo
+COPY postprocess-static.mjs /tmp/postprocess-static.mjs
+RUN node /tmp/postprocess-static.mjs public
 
 ###---------
 FROM cgr.dev/chainguard/nginx AS deploy

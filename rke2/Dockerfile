@@ -12,7 +12,7 @@ RUN npm install
 # generate the static html
 RUN npm run build
 COPY postprocess-docusaurus.mjs /tmp/postprocess-docusaurus.mjs
-RUN node /tmp/postprocess-docusaurus.mjs build
+RUN OFFLINE_DOCS_ROOT_TARGET=introduction node /tmp/postprocess-docusaurus.mjs build
 
 ###---------
 FROM cgr.dev/chainguard/nginx AS deploy

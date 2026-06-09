@@ -20,7 +20,7 @@ docs:
   rke2:
     enabled: true
     image: rke2-docs
-    tag: a2e3f01
+    tag: 099c7c3
   k3s:
     enabled: true
     image: k3s-docs
@@ -36,12 +36,12 @@ docs:
   kubewarden:
     enabled: true
     image: kubewarden-docs
-    tag: 7bc0303
+    tag: 43393b7
   harvester:
     enabled: true
     image: harvester-docs
-    tag: 772b1eb
+    tag: e27cb74
   rancherdesktop:
     enabled: true
     image: rancher-desktop-docs
-    tag: 733300f
+    tag: dc3d52f

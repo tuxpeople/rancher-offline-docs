@@ -31,13 +31,13 @@ Die Idee ist inspiriert von [Rancher Government Carbide](https://rancherfederal.
 
 ## Image-Tags und Versionierung
 
-Image-Tags entsprechen dem **HEAD Commit-SHA des upstream Docs-Repos** zum Zeitpunkt des Builds (z.B. `a3f9c12`). Das Tag beschreibt damit exakt welchen Stand der Upstream-Dokumentation das Image enthält — nicht die Version der Software selbst.
+Image-Tags kombinieren den **HEAD Commit-SHA des upstream Docs-Repos** mit dem Commit dieses Packaging-Repositories (z.B. `a3f9c12-7ffb591`). Damit beschreibt das Tag sowohl den Stand der Dokumentation als auch die verwendeten Docker-, Proxy- und Postprocessing-Fixes.
 
 Zusätzlich wird `latest` immer auf den neusten main-Build gesetzt.
 
 ```
-ghcr.io/tuxpeople/rke2-docs:a3f9c12   # upstream SHA → pinned
-ghcr.io/tuxpeople/rke2-docs:latest    # immer aktuell
+ghcr.io/tuxpeople/rke2-docs:a3f9c12-7ffb591  # reproduzierbar gepinnt
+ghcr.io/tuxpeople/rke2-docs:latest           # immer aktuell
 ```
 
 Der Helm Chart nutzt **CalVer mit GitHub-Run-Nummer** (`YYYY.M.D-rN`) als Versions-Schema. Das Datum beschreibt den Snapshot, die Run-Nummer macht die OCI-Version eindeutig, da GHCR Chart-Versionen nicht zuverlässig überschreibt.
@@ -54,13 +54,13 @@ push to main
   └── lint              Alle Dockerfiles mit hadolint prüfen
        └── build ×N     Pro Image parallel (wartet auf discover + lint):
             ├── upstream HEAD SHA holen (git ls-remote)
-            ├── Image bauen + pushen  →  ghcr.io/tuxpeople/<n>-docs:<sha>
+            ├── Image bauen + pushen  →  ghcr.io/tuxpeople/<n>-docs:<upstream-sha>-<packaging-sha>
             ├── SBOM als OCI-Attestation (BuildKit/Syft)
             └── SLSA Provenance Level 1
                  └── collect-digests
                       ├── provenance   SLSA Level 3 Signatur
                       └── update-chart
-                           ├── values.yaml: pro Produkt den neuen SHA eintragen
+                           ├── values.yaml: pro Produkt den neuen Image-Tag eintragen
                            ├── Chart.yaml: CalVer-Version setzen
                            ├── Helm Chart → oci://ghcr.io/tuxpeople/charts/rancher-offline-docs
                            └── Commit zurück zu main  [skip ci]
@@ -188,7 +188,7 @@ done
 
 4. In `charts/rancher-offline-docs/templates/` Deployment, Service und NavLink ergänzen (analog zu bestehenden Einträgen).
 
-5. Push auf `main` — CI lintet, baut, setzt den upstream SHA als Tag und aktualisiert den Chart.
+5. Push auf `main` — CI lintet, baut, setzt Upstream- und Packaging-SHA als Tag und aktualisiert den Chart.
 
 ---
 

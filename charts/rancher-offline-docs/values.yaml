@@ -2,15 +2,15 @@
 # Images are built by CI and pushed to GHCR as:
 #   ghcr.io/<owner>/<n>-docs:<tag>
 #
-# Tags correspond to the HEAD commit SHA of the upstream docs repo
-# at build time — automatically updated by CI after each build.
+# Tags combine the upstream docs HEAD SHA and this repository's build commit
+# so packaging fixes trigger a Kubernetes rollout.
 #
 # chainguard/nginx listens on port 8080 (non-root)
 
 namespace: rancher-docs-system
 registry: ghcr.io/tuxpeople
 # Per-product config
-# tag: set automatically by CI to the upstream repo HEAD SHA (e.g. "a3f9c12")
+# tag: set automatically by CI (e.g. "a3f9c12-7ffb591")
 # enabled: set to false to skip a product (useful in low-compute environments)
 docs:
   rancher:

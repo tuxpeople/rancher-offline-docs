@@ -15,7 +15,7 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 
 {{/*
 Full image reference for a product.
-Each product carries its own tag (= upstream docs repo HEAD SHA at build time).
+Each product carries its own tag (= upstream SHA + packaging repository SHA).
 Usage: include "rancher-offline-docs.image" (list . "rke2")
 */}}
 {{- define "rancher-offline-docs.image" -}}

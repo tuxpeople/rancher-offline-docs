@@ -75,7 +75,7 @@ docs:
   rancher:
     enabled: true
     image: rancher-docs
-    tag: latest         # upstream Docs-Repo HEAD SHA, z.B. "a3f9c12"
+    tag: latest         # z.B. "a3f9c12-7ffb591"
 
   rke2:
     enabled: true
@@ -113,7 +113,7 @@ docs:
     tag: latest
 ```
 
-> **Hinweis:** Das `tag`-Feld wird durch die CI-Pipeline automatisch auf den HEAD Commit-SHA des jeweiligen upstream Docs-Repos gesetzt. Manuell anpassen ist nicht nötig, ausser beim Pinnen auf eine bestimmte Version.
+> **Hinweis:** Das `tag`-Feld wird durch die CI-Pipeline automatisch aus Upstream-SHA und Packaging-SHA erzeugt. Manuell anpassen ist nicht nötig, ausser beim Pinnen auf eine bestimmte Version.
 
 ## Images spiegeln (airgapped)
 
@@ -131,8 +131,8 @@ Dann mit `skopeo` oder `crane` in die eigene Registry kopieren:
 
 ```bash
 skopeo copy \
-  docker://ghcr.io/tuxpeople/rke2-docs:a3f9c12 \
-  docker://registry.example.com/rancher-docs/rke2-docs:a3f9c12
+  docker://ghcr.io/tuxpeople/rke2-docs:a3f9c12-7ffb591 \
+  docker://registry.example.com/rancher-docs/rke2-docs:a3f9c12-7ffb591
 ```
 
 Beim Install die eigene Registry setzen:
@@ -141,7 +141,7 @@ Beim Install die eigene Registry setzen:
 helm install rancher-offline-docs \
   oci://ghcr.io/tuxpeople/charts/rancher-offline-docs \
   --set registry=registry.example.com/rancher-docs \
-  --set docs.rke2.tag=a3f9c12
+  --set docs.rke2.tag=a3f9c12-7ffb591
 ```
 
 ## Upgrade

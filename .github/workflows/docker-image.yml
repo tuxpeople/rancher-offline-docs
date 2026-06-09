@@ -54,11 +54,11 @@ jobs:
 
   # ---------------------------------------------------------------
   # Build: paralleler Job pro Image
-  #   - Image-Tag = HEAD SHA des upstream Docs-Repos
+  #   - Image-Tag = upstream SHA + Packaging-SHA
   #   - GHA Layer Cache
   #   - Push zu GHCR (ausser bei PRs)
   #   - SBOM als OCI-Attestation via BuildKit (ausser bei PRs)
-  #   - Digest für SLSA + upstream SHA für Chart-Update speichern
+  #   - Digest für SLSA + eindeutigen Image-Tag für Chart-Update speichern
   #   - Optional: stable version image (wenn upstream versions.json hat)
   # ---------------------------------------------------------------
   build:
@@ -87,9 +87,8 @@ jobs:
           echo "safe_name=$safe" >> $GITHUB_OUTPUT
 
       # HEAD SHA und URL des upstream Docs-Repos aus dem Dockerfile auslesen.
-      # SHA wird als Image-Tag verwendet — er beschreibt welchen Stand
-      # der Upstream-Dokumentation das Image enthält.
-      # URL und SHA werden zusätzlich als OCI-Labels gesetzt.
+      # Der Image-Tag kombiniert Upstream- und Packaging-SHA, damit Änderungen
+      # an Dockerfiles/Postprocessing immer einen neuen Kubernetes-Rollout auslösen.
       - name: Get upstream repo SHA
         id: upstream
         run: |
@@ -114,6 +113,11 @@ jobs:
             echo "::warning::No git clone found in $DOCKERFILE — falling back to 'latest'"
           fi
 
+          UPSTREAM_SHA=$(grep '^sha=' "$GITHUB_OUTPUT" | tail -n1 | cut -d= -f2)
+          PACKAGE_SHA="${GITHUB_SHA::7}"
+          echo "image_tag=${UPSTREAM_SHA}-${PACKAGE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "Image tag: ${UPSTREAM_SHA}-${PACKAGE_SHA}"
+
       - name: Login to GHCR
         if: github.event_name != 'pull_request'
         uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4
@@ -135,8 +139,8 @@ jobs:
             io.tuxpeople.upstream.url=${{ steps.upstream.outputs.url }}
             io.tuxpeople.upstream.sha=${{ steps.upstream.outputs.sha }}
           tags: |
-            # Primärer Tag: upstream Docs-Repo HEAD SHA (z.B. "a3f9c12")
-            type=raw,value=${{ steps.upstream.outputs.sha }},enable=${{ github.event_name != 'pull_request' }}
+            # Primärer Tag: Upstream-SHA + Packaging-SHA (z.B. "a3f9c12-7ffb591")
+            type=raw,value=${{ steps.upstream.outputs.image_tag }},enable=${{ github.event_name != 'pull_request' }}
             # latest zeigt immer auf den letzten main-Build
             type=raw,value=latest,enable=${{ github.event_name != 'pull_request' && github.ref_name == 'main' }}
             # PR-Builds bekommen einen pr-N Tag (kein Push, nur für Cache)
@@ -175,19 +179,19 @@ jobs:
           path: digest.txt
           if-no-files-found: error
 
-      # Upstream SHA für den update-chart-Job speichern
-      - name: Save upstream SHA for chart update
+      # Eindeutigen Image-Tag für den update-chart-Job speichern
+      - name: Save image tag for chart update
         if: github.event_name != 'pull_request'
         run: |
-          echo "${{ steps.sanitize.outputs.safe_name }}=${{ steps.upstream.outputs.sha }}" \
-            > upstream-sha.txt
+          echo "${{ steps.sanitize.outputs.safe_name }}=${{ steps.upstream.outputs.image_tag }}" \
+            > image-tag.txt
 
-      - name: Upload upstream SHA artifact
+      - name: Upload image tag artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: upstream-sha-${{ steps.sanitize.outputs.safe_name }}
-          path: upstream-sha.txt
+          name: image-tag-${{ steps.sanitize.outputs.safe_name }}
+          path: image-tag.txt
           if-no-files-found: error
 
       # ---------------------------------------------------------------
@@ -321,7 +325,7 @@ jobs:
   # Helm Chart als OCI nach GHCR pushen.
   #
   # Läuft nur auf main-Pushes (nicht bei PRs oder Releases).
-  # Image-Tags in values.yaml werden auf die upstream SHAs gesetzt.
+  # Image-Tags in values.yaml werden auf Upstream-SHA + Packaging-SHA gesetzt.
   # Chart-Version wird als CalVer + Run-Nummer (YYYY.M.D-rN) gesetzt.
   # ---------------------------------------------------------------
   update-chart:
@@ -337,11 +341,11 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download upstream SHA artifacts
+      - name: Download image tag artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          pattern: upstream-sha-*
-          path: upstream-shas
+          pattern: image-tag-*
+          path: image-tags
 
       - name: Install yq
         run: |
@@ -363,7 +367,7 @@ jobs:
             ["rancher-desktop"]="rancherdesktop"
           )
 
-          for f in upstream-shas/upstream-sha-*/upstream-sha.txt; do
+          for f in image-tags/image-tag-*/image-tag.txt; do
             line=$(cat "$f")
             safe_name="${line%%=*}"
             sha="${line##*=}"

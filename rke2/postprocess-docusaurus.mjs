@@ -43,7 +43,6 @@ const fixElement=n=>{if(n.nodeType!==1)return;for(const a of["href","src"])if(n.
 const rewrite=n=>{fixElement(n);n.querySelectorAll?.("[href],[src]").forEach(fixElement)};
 rewrite(document.documentElement);new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(rewrite))).observe(document.documentElement,{childList:true,subtree:true});
 addEventListener("click",e=>{const a=e.target.closest?.("a[href]");if(!a||e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;const u=new URL(a.href,location.href);if(u.origin===location.origin&&u.pathname.startsWith(b)){e.preventDefault();e.stopImmediatePropagation();location.assign(u.href)}},true);
-for(const k of["pushState","replaceState"]){const n=history[k].bind(history);history[k]=(s,t,u)=>{if(typeof u==="string"&&u.startsWith("/")&&!u.startsWith(b)){const target=fix(u);k==="replaceState"?location.replace(target):location.assign(target);return}return n(s,t,u)}}
 })();
 </script>`;
 

@@ -39,10 +39,10 @@ function relativizeHtml(content, prefix) {
 const proxyBootstrap = `<script>
 (()=>{const m=location.pathname.match(/^(.*\\/proxy\\/)/),b=m?m[1]:"/";
 if(b==="/")return;const fix=u=>{if(!u||typeof u!=="string"||!u.startsWith("/")||u.startsWith("//")||u.startsWith(b))return u;return b+u.slice(1)};
-const fixElement=n=>{if(n.nodeType!==1)return;for(const a of["href","src"])if(n.hasAttribute(a))n.setAttribute(a,fix(n.getAttribute(a)))};
+const fixElement=n=>{if(n.nodeType!==1)return;for(const a of["href","src"])if(n.hasAttribute(a)){const v=n.getAttribute(a);n.setAttribute(a,a==="href"&&n.tagName==="A"&&v.startsWith("/")&&!v.startsWith("//")?"#"+v:fix(v))}};
 const rewrite=n=>{fixElement(n);n.querySelectorAll?.("[href],[src]").forEach(fixElement)};
 rewrite(document.documentElement);new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(rewrite))).observe(document.documentElement,{childList:true,subtree:true});
-addEventListener("click",e=>{const a=e.target.closest?.("a[href]");if(!a||e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;const u=new URL(a.href,location.href);if(u.origin===location.origin&&u.pathname.startsWith(b)){e.preventDefault();e.stopImmediatePropagation();location.assign(u.href)}},true);
+addEventListener("click",e=>{const a=e.target.closest?.("a[href]"),h=a?.getAttribute("href");if(!a||h?.startsWith("#")||e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;const u=new URL(a.href,location.href);if(u.origin===location.origin&&u.pathname.startsWith(b)){e.preventDefault();e.stopImmediatePropagation();location.assign(u.href)}},true);
 })();
 </script>`;
 

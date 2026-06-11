@@ -6,6 +6,10 @@ WORKDIR /home/node/app
 # remove the url path prefix that breaks dynamic rewrites
 RUN sed -i "s/rke2-docs\///g" docusaurus.config.js
 
+# use hash-based routes so Docusaurus ignores the Rancher proxy path
+COPY prepare-docusaurus.mjs /tmp/prepare-docusaurus.mjs
+RUN node /tmp/prepare-docusaurus.mjs docusaurus.config.js
+
 # install deps
 RUN npm install
 

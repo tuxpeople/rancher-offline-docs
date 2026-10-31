@@ -1,7 +1,7 @@
 FROM node:24 AS base
 
 # docs-common/ai-prompts is an SSH submodule (git@github.com:...); fetch it over HTTPS
-RUN git -c url."https://github.com/".insteadOf="git@github.com:" \
+RUN git -c "url.https://github.com/.insteadOf=git@github.com:" \
       clone --recurse-submodules https://github.com/kubewarden/docs.git /home/node/app
 WORKDIR /home/node/app
 

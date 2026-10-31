@@ -1,4 +1,8 @@
 FROM node:24 AS base
+# Node 26 images no longer ship yarn, but the docs tooling runs `yarn --version`
+# renovate: datasource=npm depName=yarn
+ARG YARN_VERSION=1.22.22
+RUN command -v yarn >/dev/null || npm install -g "yarn@${YARN_VERSION}"
 ARG BUILD_VERSION=current
 ENV PUPPETEER_SKIP_DOWNLOAD=true \
     PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true

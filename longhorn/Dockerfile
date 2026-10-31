@@ -1,6 +1,20 @@
-FROM node:24-alpine AS base
+FROM node:24 AS base
 
-RUN apk add --no-cache git hugo
+# Use the Hugo version upstream builds with (HUGO_VERSION in longhorn/website's
+# netlify.toml); whatever Alpine ships fails to render the site templates.
+# renovate: datasource=github-releases depName=gohugoio/hugo
+ARG HUGO_VERSION=v0.154.5
+ARG TARGETARCH
+RUN v="${HUGO_VERSION#v}" && \
+    base="https://github.com/gohugoio/hugo/releases/download/${HUGO_VERSION}" && \
+    deb="hugo_extended_${v}_linux-${TARGETARCH:-amd64}.deb" && \
+    cd /tmp && \
+    curl -fsSLO "${base}/${deb}" && \
+    curl -fsSLO "${base}/hugo_${v}_checksums.txt" && \
+    grep " ${deb}\$" "hugo_${v}_checksums.txt" | sha256sum --check && \
+    dpkg -i "${deb}" && \
+    rm -f "${deb}" "hugo_${v}_checksums.txt" && \
+    hugo version
 
 RUN git clone https://github.com/longhorn/website /home/node/app
 WORKDIR /home/node/app

@@ -3,7 +3,7 @@ FROM node:26 AS base
 # Use the Hugo version upstream builds with (HUGO_VERSION in longhorn/website's
 # netlify.toml); whatever Alpine ships fails to render the site templates.
 # renovate: datasource=github-releases depName=gohugoio/hugo
-ARG HUGO_VERSION=v0.154.5
+ARG HUGO_VERSION=v0.169.0
 ARG TARGETARCH
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 WORKDIR /tmp

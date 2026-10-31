@@ -12,7 +12,7 @@ RUN npm ci || npm install
 RUN make community-local
 
 ###---------
-FROM cgr.dev/chainguard/nginx AS deploy
+FROM cgr.dev/chainguard/nginx:latest@sha256:16d0e55ffe62f55744d9b903d8eb57e533d0f660332a9fbb967d78b4e77c8bdb AS deploy
 
 COPY --from=base /home/node/app/build/site /usr/share/nginx/html/
 COPY nginx-docs.conf /etc/nginx/conf.d/default.conf

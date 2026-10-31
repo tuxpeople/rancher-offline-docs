@@ -1,4 +1,4 @@
-FROM node:24 AS base
+FROM node:26 AS base
 # Node 26 images no longer ship yarn, but the docs tooling runs `yarn --version`
 # renovate: datasource=npm depName=yarn
 ARG YARN_VERSION=1.22.22

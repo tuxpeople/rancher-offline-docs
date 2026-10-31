@@ -1,4 +1,4 @@
-FROM node:24 AS base
+FROM node:26 AS base
 
 # docs-common/ai-prompts is an SSH submodule (git@github.com:...); fetch it over HTTPS
 RUN git -c "url.https://github.com/.insteadOf=git@github.com:" \

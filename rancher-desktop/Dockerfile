@@ -1,4 +1,4 @@
-FROM node:24 AS base
+FROM node:26 AS base
 
 RUN git clone https://github.com/rancher-sandbox/docs.rancherdesktop.io.git /home/node/app
 WORKDIR /home/node/app

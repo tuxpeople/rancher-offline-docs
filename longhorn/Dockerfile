@@ -1,4 +1,4 @@
-FROM node:24 AS base
+FROM node:26 AS base
 
 # Use the Hugo version upstream builds with (HUGO_VERSION in longhorn/website's
 # netlify.toml); whatever Alpine ships fails to render the site templates.

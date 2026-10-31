@@ -8,7 +8,7 @@
   "dependencyDashboardTitle": "Renovate Dashboard 🤖",
   "automerge": true,
   "automergeType": "pr",
-  "platformAutomerge": true,
+  "platformAutomerge": false,
   "forkProcessing": "enabled",
   "packageRules": [
     {

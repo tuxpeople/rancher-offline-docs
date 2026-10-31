@@ -1,4 +1,8 @@
 FROM node:24 AS base
+# Node 26 images no longer ship yarn, but the docs tooling runs `yarn --version`
+# renovate: datasource=npm depName=yarn
+ARG YARN_VERSION=1.22.22
+RUN command -v yarn >/dev/null || npm install -g "yarn@${YARN_VERSION}"
 ARG BUILD_VERSION=current
 ENV PUPPETEER_SKIP_DOWNLOAD=true \
     PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
@@ -41,7 +45,7 @@ COPY postprocess-docusaurus.mjs /tmp/postprocess-docusaurus.mjs
 RUN OFFLINE_DOCS_ROOT_TARGET=v1.8 node /tmp/postprocess-docusaurus.mjs build
 
 ###---------
-FROM cgr.dev/chainguard/nginx AS deploy
+FROM cgr.dev/chainguard/nginx:latest@sha256:16d0e55ffe62f55744d9b903d8eb57e533d0f660332a9fbb967d78b4e77c8bdb AS deploy
 
 COPY --from=base /home/node/app/build /usr/share/nginx/html/
 COPY nginx-docs.conf /etc/nginx/conf.d/default.conf

@@ -23,6 +23,13 @@
         "major"
       ],
       "automerge": false
+    },
+    {
+      "description": "Hugo has to match HUGO_VERSION in longhorn/website's netlify.toml; newer versions fail to render the site. Update it by hand when upstream does.",
+      "matchPackageNames": [
+        "gohugoio/hugo"
+      ],
+      "enabled": false
     }
   ]
 }

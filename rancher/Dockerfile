@@ -29,7 +29,7 @@ COPY postprocess-docusaurus.mjs /tmp/postprocess-docusaurus.mjs
 RUN OFFLINE_DOCS_ROOT_TARGET=rancher-manager node /tmp/postprocess-docusaurus.mjs build
 
 ###---------
-FROM cgr.dev/chainguard/nginx:latest@sha256:b9debc2fbe5bf256b4c3980d0bbfda8187d46e35b4117c582ace66269dc1de28 AS deploy
+FROM cgr.dev/chainguard/nginx:latest@sha256:5f1056de9a9fd549e9c2a45476375a886c85c8be2b1545e6ecd1bf8fa78c88aa AS deploy
 
 COPY --from=base /home/node/app/build /usr/share/nginx/html/
 COPY nginx-docs.conf /etc/nginx/conf.d/default.conf

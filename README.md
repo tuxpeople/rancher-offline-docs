@@ -71,6 +71,8 @@ push to main
 - **Hadolint**: Alle Dockerfiles werden bei jedem Build gelintet. Konfiguration in `.hadolint.yaml`. Lint-Fehler blockieren den Build.
 - **SBOM**: Jedes Image enthält ein Software Bill of Materials als OCI-Attestation, generiert durch Syft während dem Build (kein nachträgliches Scannen)
 - **SLSA Level 3**: Signierte Provenance für alle Images via [slsa-framework/slsa-github-generator](https://github.com/slsa-framework/slsa-github-generator)
+- **Signatur**: Jedes Image wird mit Cosign keyless signiert und direkt danach geprüft.
+- **Scan**: Trivy prüft jedes Image auf behebbare CRITICAL/HIGH-Lücken (Ergebnis im Job-Log und unter GitHub Security).
 - **Distroless nginx**: Alle Images basieren auf `cgr.dev/chainguard/nginx` — minimale Angriffsfläche, läuft non-root auf Port 8080
 - **Renovate**: Automatische Updates für Action-Versionen und Dependencies
 

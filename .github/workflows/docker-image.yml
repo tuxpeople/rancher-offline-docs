@@ -58,6 +58,7 @@ jobs:
   #   - GHA Layer Cache
   #   - Push zu GHCR (ausser bei PRs)
   #   - SBOM als OCI-Attestation via BuildKit (ausser bei PRs)
+  #   - Cosign keyless signieren + prüfen, Trivy-Scan (ausser bei PRs)
   #   - Digest für SLSA + eindeutigen Image-Tag für Chart-Update speichern
   #   - Optional: stable version image (wenn upstream versions.json hat)
   # ---------------------------------------------------------------
@@ -67,7 +68,8 @@ jobs:
     permissions:
       contents: read
       packages: write   # GHCR push
-      id-token: write   # SBOM- und Provenance-Attestationen
+      id-token: write   # Cosign keyless, SBOM- und Provenance-Attestationen
+      security-events: write   # Trivy SARIF
     strategy:
       matrix:
         image: ${{ fromJson(needs.discover.outputs.images) }}
@@ -161,6 +163,46 @@ jobs:
           sbom: ${{ github.event_name != 'pull_request' }}
           # Inline SLSA Provenance (Build Level 1) — Level 3 folgt im provenance-Job
           provenance: ${{ github.event_name != 'pull_request' && 'mode=max' || 'false' }}
+
+      - name: Install Cosign
+        if: github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      - name: Sign and verify image (keyless)
+        if: github.event_name != 'pull_request'
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ steps.sanitize.outputs.safe_name }}-docs@${{ steps.build.outputs.digest }}
+        run: |
+          cosign sign --yes "$IMAGE"
+          cosign verify \
+            --certificate-identity "https://github.com/${{ github.workflow_ref }}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$IMAGE" > /dev/null
+          echo "✅ Signature verified"
+
+      - name: Install trivy
+        if: github.event_name != 'pull_request'
+        env:
+          # renovate: datasource=github-releases depName=aquasecurity/trivy
+          TRIVY_VERSION: v0.76.2
+        run: curl -sfL "https://raw.githubusercontent.com/aquasecurity/trivy/${TRIVY_VERSION}/contrib/install.sh" | sh -s -- -b /usr/local/bin "${TRIVY_VERSION}"
+
+      # Nur Behebbares: CRITICAL/HIGH mit verfügbarem Fix. Informativ, blockiert nicht.
+      - name: Scan image for vulnerabilities
+        if: github.event_name != 'pull_request'
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ steps.sanitize.outputs.safe_name }}-docs@${{ steps.build.outputs.digest }}
+        run: |
+          trivy image --severity CRITICAL,HIGH --ignore-unfixed "$IMAGE"
+          trivy image --quiet --format sarif --output trivy-results.sarif \
+            --severity CRITICAL,HIGH --ignore-unfixed "$IMAGE"
+
+      - name: Upload scan results to GitHub Security
+        if: github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
+        with:
+          sarif_file: trivy-results.sarif
+          category: ${{ steps.sanitize.outputs.safe_name }}
 
       # Digest für den SLSA-Job speichern
       - name: Save digest for SLSA
@@ -266,6 +308,7 @@ jobs:
           fi
 
       - name: Build and push stable version image
+        id: build-stable
         if: steps.stable.outputs.skip == 'false' && steps.stable-check.outputs.exists == 'false'
         continue-on-error: true
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
@@ -279,6 +322,12 @@ jobs:
           cache-from: type=gha,scope=${{ steps.sanitize.outputs.safe_name }}
           sbom: true
           provenance: mode=max
+
+      - name: Sign stable version image (keyless)
+        if: steps.build-stable.outcome == 'success'
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ steps.sanitize.outputs.safe_name }}-docs@${{ steps.build-stable.outputs.digest }}
+        run: cosign sign --yes "$IMAGE"
 
   # ---------------------------------------------------------------
   # Collect: Digests aus allen Matrix-Jobs zusammenführen

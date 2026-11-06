@@ -40,7 +40,9 @@ RUN if [ "${BUILD_VERSION}" = "current" ]; then \
     fi
 
 # generate the static html
-RUN npm run build
+# Two SSG workers: each holds the whole site in memory, and with the default
+# the build runs out of memory on a GitHub runner
+RUN DOCUSAURUS_SSG_WORKER_THREAD_COUNT=2 npm run build
 COPY postprocess-docusaurus.mjs /tmp/postprocess-docusaurus.mjs
 RUN OFFLINE_DOCS_ROOT_TARGET=v1.8 node /tmp/postprocess-docusaurus.mjs build
 

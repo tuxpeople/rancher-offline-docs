@@ -32,7 +32,7 @@ COPY postprocess-static.mjs /tmp/postprocess-static.mjs
 RUN node /tmp/postprocess-static.mjs public
 
 ###---------
-FROM cgr.dev/chainguard/nginx:latest@sha256:c9b4886a227029de68781204ace0c221c36efbddddd82cc40baa5f510cb30a46 AS deploy
+FROM cgr.dev/chainguard/nginx:latest@sha256:3efdf56b9730d56a9bc88edf268ab72ee965cbb7d116291a8679cd89ef67e0c5 AS deploy
 
 COPY --from=base /home/node/app/public /usr/share/nginx/html/
 COPY nginx-docs.conf /etc/nginx/conf.d/default.conf

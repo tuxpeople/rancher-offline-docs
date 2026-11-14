@@ -16,32 +16,32 @@ docs:
   rancher:
     enabled: true
     image: rancher-docs
-    tag: a3a33c4-d29dc60
+    tag: a3a33c4-857c99e
   rke2:
     enabled: true
     image: rke2-docs
-    tag: 1813f94-d29dc60
+    tag: 62fade9-857c99e
   k3s:
     enabled: true
     image: k3s-docs
-    tag: 8958508-d29dc60
+    tag: 8f5525c-857c99e
   longhorn:
     enabled: true
     image: longhorn-docs
-    tag: 34fc6c7-d29dc60
+    tag: 34fc6c7-857c99e
   fleet:
     enabled: true
     image: fleet-docs
-    tag: 1b43329-d29dc60
+    tag: 1b43329-857c99e
   kubewarden:
     enabled: true
     image: kubewarden-docs
-    tag: latest-d29dc60
+    tag: latest-857c99e
   harvester:
     enabled: true
     image: harvester-docs
-    tag: fb5f62d-d29dc60
+    tag: fb5f62d-857c99e
   rancherdesktop:
     enabled: true
     image: rancher-desktop-docs
-    tag: 63c1ede-d29dc60
+    tag: 63c1ede-857c99e

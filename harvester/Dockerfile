@@ -47,7 +47,7 @@ COPY postprocess-docusaurus.mjs /tmp/postprocess-docusaurus.mjs
 RUN OFFLINE_DOCS_ROOT_TARGET=v1.8 node /tmp/postprocess-docusaurus.mjs build
 
 ###---------
-FROM cgr.dev/chainguard/nginx:latest@sha256:9708b6c879cb97b0641ce48891a0ced73e09624b717a256564710e6864a42a5f AS deploy
+FROM cgr.dev/chainguard/nginx:latest@sha256:c1642395cc75f39c931d66d939f7e78cbdf671d6cfd821616632b0639c3c6d63 AS deploy
 
 COPY --from=base /home/node/app/build /usr/share/nginx/html/
 COPY nginx-docs.conf /etc/nginx/conf.d/default.conf

@@ -15,7 +15,7 @@ COPY postprocess-docusaurus.mjs /tmp/postprocess-docusaurus.mjs
 RUN node /tmp/postprocess-docusaurus.mjs build
 
 ###---------
-FROM cgr.dev/chainguard/nginx:latest@sha256:858e682ca95e4bf1cc23ce871227315620a1d653423fe2dc98056d094c480562 AS deploy
+FROM cgr.dev/chainguard/nginx:latest@sha256:9debcc9767ac653c2b302d74d1ce157a445da8bbcc1f2d48993d02f68fb2e964 AS deploy
 
 COPY --from=base /home/node/app/build /usr/share/nginx/html/
 COPY nginx-docs.conf /etc/nginx/conf.d/default.conf
